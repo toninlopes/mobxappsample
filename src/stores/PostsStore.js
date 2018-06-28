@@ -1,92 +1,94 @@
 import { observable, action } from 'mobx';
+import BaseStore from './BaseStore';
 
-export default class PostsStore {
-  /**
-   * Posts URI Host.
-   */
-  POSTS_URI = 'https://jsonplaceholder.typicode.com';
+export default class PostsStore extends BaseStore {
 
-  /**
-   * Posts path.
-   */
-  POSTS_PATH = `${this.POSTS_URI}/posts`;
+    /**
+     * Posts path.
+    */
+    POSTS_PATH = `${this.POSTS_URI}/posts`;
 
-  /**
-   * Users path.
-   */
-  USER_PATH = `${this.POSTS_URI}/users`;
+    /**
+     * Posts observable array.
+     */
+    @observable posts = [];
 
-  /**
-   * Posts observable array.
-   */
-  @observable posts = [];
-
-  /**
-   * Users observable map.
-   */
-  @observable users = new Map();
-
-  /**
-   * Fetchs post data from server.
-   */
-  @action
-  async fetchPostsAsync() {
-    try {
-      const response = await fetch(this.POSTS_PATH);
-      this.posts = await response.json();
-    } catch (error) {
-      console.log(`fetchPostsAsync (ERROR) - ${JSON.stringify(error.message, null, 2)}`);
-    }
-
-    try {
-      this.fetchUsersAsync();
-    } catch (error) {
-      console.log(`fetchPostsAsync (ERROR) - ${JSON.stringify(error.message, null, 2)}`);
-    }
-  }
-
-  /**
-   * Fetchs user data from server.
-   */
-  @action
-  async fetchUsersAsync() {
-    this.posts.forEach(async post => {
-      try {
-        const response = await fetch(`${this.USER_PATH}/${post.userId}`);
-        const user = await response.json();
-        this.users.set(user.id, user.email);
-      } catch (error) {
-        console.log(`fetchUsersAsync (ERROR) - ${JSON.stringify(error.message, null, 2)}`);
-      }
-    });
-  }
-
-  /**
-   * Deletes post from the posts list.
-   * @param {Any} post
-   */
-  @action
-  async deletePostAsync(post) {
-    debugger;
-    try {
-      const index = this.posts.indexOf(post);
-      if (index > -1) {
-        this.posts[index] = Object.assign({}, post, { deleting: true });
-      }
-      const requestInit = {
-        method: 'DELETE',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json'
+    /**
+     * Fetchs post data from server.
+     */
+    @action
+    async fetchPostsAsync(userId) {
+        try {
+            this.isRefresing = true;
+            const endpoint = `${this.POSTS_PATH}?userId=${userId}`
+            const response = await fetch(endpoint);
+            this.posts = await response.json();
+        } catch (error) {
+            console.log(`fetchPostsAsync (ERROR) - ${JSON.stringify(error.message, null, 2)}`);
+        } finally {
+            this.isRefresing = false;
         }
-      };
-      const response = await fetch(`${this.POSTS_PATH}/${post.id}`, requestInit);
-      debugger;
-      if (response.ok && index > -1) {
-        this.posts.splice(index, 1);
-      }
-    } catch (error) {
-      console.log(`deletePostAsync (ERROR) - ${JSON.stringify(error.message, null, 2)}`);
     }
-  }
+
+    /**
+     * Deletes post from the posts list.
+     * @param {Any} post
+     */
+    @action
+    async deletePostAsync(postId) {
+        try {
+            const postsFiltered = this.posts.filter((p) => p.id == postId);
+            const index = this.posts.indexOf(postsFiltered[0]);
+            if (index > -1) {
+                this.posts[index] = Object.assign({}, postsFiltered[0], { deleting: true });
+            }
+            const requestInit = {
+                method: 'DELETE',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            };
+            const response = await fetch(`${this.POSTS_PATH}/${postId}`, requestInit);
+            if (response.status === 200) {
+                const postsFiltered = this.posts.filter((p) => p.id == postId);
+                const index = this.posts.indexOf(postsFiltered[0]);
+                this.posts.splice(index, 1);
+            }
+        } catch (error) {
+            console.log(`deletePostAsync (ERROR) - ${JSON.stringify(error.message, null, 2)}`);
+        }
+    }
+
+    /**
+   * Saves the post.
+   * @param {*} post 
+   */
+    async savePostAsync(post) {
+        try {
+            debugger;
+            const postsFiltered = this.posts.filter((p) => p.id == post.id);
+            const index = this.posts.indexOf(postsFiltered[0]);
+            if (index > -1) {
+                this.posts[index] = Object.assign({}, postsFiltered[0], { deleting: true });
+            }
+
+            const requestInit = {
+                method: 'PUT',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(post)
+            };
+            const response = await fetch(`${this.POSTS_PATH}/${post.id}`, requestInit);
+            const newPost = await response.json();
+            debugger;
+            if (index > -1) {
+                this.posts[index] = Object.assign({}, newPost, { deleting: false });;
+            }
+        } catch (error) {
+            console.log(`savePostAsync (ERROR) - ${JSON.stringify(error.message, null, 2)}`);
+        }
+    }
 }

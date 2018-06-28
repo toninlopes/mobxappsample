@@ -2,35 +2,22 @@ import React, { Component } from 'react';
 import { StyleSheet, FlatList, View, RefreshControl } from 'react-native';
 import { observer, inject } from 'mobx-react/native';
 import { toJS } from 'mobx';
-import Post from '../components/Post';
+import User from '../components/User';
 
-@inject('postsStore')
+@inject('usersStore')
 @observer
-export default class Posts extends Component {
-
-    static navigationOptions = ({ navigation }) => {
-        const { user } = navigation.state.params || {};
-
-        return {
-            title: `Posts of ${user.name}`
-        };
-    };
-
-    componentWillUnmount() {
-        const { postsStore } = this.props;
-        postsStore.posts = [];
-    }
+export default class Users extends Component {
 
     render() {
-        const { postsStore } = this.props;
+        const { usersStore } = this.props;
         return (
             <FlatList
-                data={toJS(postsStore.posts)}
-                refreshing={true}
+                data={toJS(usersStore.users)}
+                refreshing={usersStore.isRefresing}
                 refreshControl={
                     <RefreshControl
-                        refreshing={postsStore.isRefresing}
-                        onRefresh={async () => await postsStore.fetchPostsAsync(this.props.navigation.state.params.user.id)}
+                        refreshing={usersStore.isRefresing}
+                        onRefresh={async () => await usersStore.fetchUsersAsync()}
                     />
                 }
                 extraData={this.props}
@@ -47,17 +34,13 @@ export default class Posts extends Component {
         const { navigation } = this.props;
         const params = Object.assign({}, item, navigation)
         return (
-            <Post
-                {...params}
-                key={item.id}
-                deleting={item.deleting}
-            />
+            <User {...params} />
         );
     };
 
     async componentDidMount() {
-        const { postsStore } = this.props;
-        await postsStore.fetchPostsAsync(this.props.navigation.state.params.user.id);
+        const { usersStore } = this.props;
+        await usersStore.fetchUsersAsync();
     }
 }
 
